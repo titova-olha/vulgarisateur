@@ -1,60 +1,69 @@
 import streamlit as st
 from openai import OpenAI
-import json
 
-# Настройка внешнего вида страницы
-st.set_page_config(page_title="Le Vulgarisateur", page_icon="🧬")
-
+# --- Настройка интерфейса ---
 st.title("🧬 Le Vulgarisateur Scientifique")
-st.write("Transformez des articles complexes en explications simples avec des illustrations !")
+st.write("Transformez un texte académique complexe en une explication simple pour un enfant de 10-12 ans.")
 
-# Подключение к OpenAI (ключ будет браться из секретных настроек Streamlit)
-try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-except:
-    st.error("La clé API est manquante. Veuillez la configurer.")
-    st.stop()
+# Подключение клиента OpenAI (убедись, что ключ есть в настройках Streamlit Cloud)
+client = OpenAI(api_key=st.secrets["api_key"])
 
-# Поле для ввода текста
-abstract = st.text_area("Collez l'abstract de l'article scientifique ici :", height=200)
+# --- Инициализация памяти (Session State) ---
+# Если в памяти еще нет сохраненного текста, создаем для него пустое место
+if "texte_simplifie" not in st.session_state:
+    st.session_state.texte_simplifie = None
 
-# Кнопка запуска
-if st.button("Simplifier & Illustrer ✨"):
-    if not abstract:
-        st.warning("Veuillez entrer un texte avant de cliquer.")
-    else:
+# --- Шаг 1: Ввод текста ---
+texte_original = st.text_area("Collez votre abstract scientifique ici :", height=200)
+
+# Кнопка для генерации только текста
+if st.button("📝 Simplifier le texte"):
+    if texte_original:
         with st.spinner("Analyse et simplification en cours..."):
             try:
-                # Шаг 1: Просим GPT упростить текст и придумать промпт для картинки
-                response = client.chat.completions.create(
+                # Генерация текста
+                reponse_texte = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    response_format={ "type": "json_object" },
                     messages=[
-                        {"role": "system", "content": "Tu es un expert en vulgarisation scientifique. Prends le texte fourni et fais deux choses : 1) Réécris-le pour un enfant de 10-12 ans en français simple et engageant. 2) Crée un prompt détaillé en anglais pour DALL-E 3 afin d'illustrer ce texte. Renvoie UNIQUEMENT un objet JSON avec les clés exactes : 'u_text' (pour le texte simplifié) et 'dalle_prompt' (pour le prompt de l'image)."},
-                        {"role": "user", "content": abstract}
+                        {"role": "system", "content": "Tu es un expert en vulgarisation scientifique. Prends le texte fourni et réécris-le pour un enfant de 10-12 ans en français, en utilisant une métaphore filée."},
+                        {"role": "user", "content": texte_original}
                     ]
                 )
-                
-                result = json.loads(response.choices[0].message.content)
-                simplified_text = result["u_text"]
-                image_prompt = result["dalle_prompt"]
-
-                st.subheader("Explication simple :")
-                st.write(simplified_text)
-
-                # Шаг 2: Просим DALL-E нарисовать картинку по промпту
-                with st.spinner("Génération de l'illustration (cela peut prendre 10-15 secondes)..."):
-                    image_response = client.images.generate(
-                        model="dall-e-3",
-                        prompt=image_prompt,
-                        size="1024x1024",
-                        quality="standard",
-                        n=1,
-                    )
-                    image_url = image_response.data[0].url
-                    
-                    st.subheader("Illustration :")
-                    st.image(image_url)
-
+                # Сохраняем результат в ПАМЯТЬ Streamlit
+                st.session_state.texte_simplifie = reponse_texte.choices[0].message.content
             except Exception as e:
-                st.error(f"Une erreur s'est produite : {e}")
+                st.error(f"Erreur lors de la génération du texte : {e}")
+    else:
+        st.warning("Veuillez entrer un texte d'abord.")
+
+# --- Шаг 2: Отображение текста и кнопка для картинки ---
+# Если в памяти есть текст, показываем его и предлагаем сгенерировать картинку
+if st.session_state.texte_simplifie:
+    st.markdown("### Explication simple :")
+    st.write(st.session_state.texte_simplifie)
+    
+    st.divider() # Горизонтальная линия для красоты
+    st.write("Voulez-vous ajouter une métaphore visuelle ?")
+    
+    # Вторая кнопка - только по желанию!
+    if st.button("🎨 Générer une illustration (DALL-E 3)"):
+        with st.spinner("Création de l'image en cours... Cela peut prendre quelques secondes."):
+            try:
+                # Генерация промпта для картинки на основе простого текста
+                prompt_image = f"Illustration de style livre pour enfants, colorée et métaphorique, basée sur ce concept : {st.session_state.texte_simplifie[:500]}"
+                
+                # Использование НОВОГО синтаксиса OpenAI для картинок
+                reponse_image = client.images.generate(
+                    model="dall-e-3",
+                    prompt=prompt_image,
+                    n=1,
+                    size="1024x1024"
+                )
+                
+                image_url = reponse_image.data[0].url
+                
+                st.markdown("### Illustration :")
+                st.image(image_url)
+                
+            except Exception as e:
+                st.error(f"⚠️ Erreur lors de la création de l'image : {e}")
