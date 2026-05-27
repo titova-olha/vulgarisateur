@@ -6,7 +6,7 @@ st.title("🧬 Le Vulgarisateur Scientifique")
 st.write("Transformez un texte académique complexe en une explication simple pour un enfant de 10-12 ans.")
 
 # Подключение клиента OpenAI (убедись, что ключ есть в настройках Streamlit Cloud)
-client = OpenAI(api_key=st.secrets["api_key"])
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --- Инициализация памяти (Session State) ---
 # Если в памяти еще нет сохраненного текста, создаем для него пустое место
