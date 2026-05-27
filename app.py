@@ -5,23 +5,22 @@ from openai import OpenAI
 st.title("🧬 Le Vulgarisateur Scientifique")
 st.write("Transformez un texte académique complexe en une explication simple pour un enfant de 10-12 ans.")
 
-# Подключение клиента OpenAI (убедись, что ключ есть в настройках Streamlit Cloud)
+# Подключение клиента OpenAI для текста (использует твой ключ OPENAI_API_KEY из Secrets)
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --- Инициализация памяти (Session State) ---
-# Если в памяти еще нет сохраненного текста, создаем для него пустое место
 if "texte_simplifie" not in st.session_state:
     st.session_state.texte_simplifie = None
 
 # --- Шаг 1: Ввод текста ---
 texte_original = st.text_area("Collez votre abstract scientifique ici :", height=200)
 
-# Кнопка для генерации только текста
+# Кнопка для генерации текста
 if st.button("📝 Simplifier le texte"):
     if texte_original:
         with st.spinner("Analyse et simplification en cours..."):
             try:
-                # Генерация текста
+                # Генерация текста (gpt-4o-mini работает идеально и он точно активен)
                 reponse_texte = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -29,38 +28,32 @@ if st.button("📝 Simplifier le texte"):
                         {"role": "user", "content": texte_original}
                     ]
                 )
-                # Сохраняем результат в ПАМЯТЬ Streamlit
                 st.session_state.texte_simplifie = reponse_texte.choices[0].message.content
             except Exception as e:
                 st.error(f"Erreur lors de la génération du texte : {e}")
     else:
         st.warning("Veuillez entrer un texte d'abord.")
 
-# --- Шаг 2: Отображение текста и кнопка для картинки ---
-# Если в памяти есть текст, показываем его и предлагаем сгенерировать картинку
+# --- Шаг 2: Отображение текста и кнопка для бесплатной картинки ---
 if st.session_state.texte_simplifie:
     st.markdown("### Explication simple :")
     st.write(st.session_state.texte_simplifie)
     
-    st.divider() # Горизонтальная линия для красоты
+    st.divider() # Красивая линия-разделитель
     st.write("Voulez-vous ajouter une métaphore visuelle ?")
     
-    # Вторая кнопка - только по желанию!
-    if st.button("🎨 Générer une illustration (dall-e-3)"):
-        with st.spinner("Création de l'image en cours... Cela peut prendre quelques secondes."):
+    # Кнопка для генерации бесплатной картинки (работает без ключей OpenAI)
+    if st.button("🎨 Générer une illustration"):
+        with st.spinner("Création de l'image en cours..."):
             try:
-                # Генерация промпта для картинки на основе простого текста
-                prompt_image = f"Illustration de style livre pour enfants, colorée et métaphorique, basée sur ce concept : {st.session_state.texte_simplifie[:500]}"
+                # Составляем промпт для детской книжной иллюстрации на основе упрощенного текста
+                prompt_image = f"Children book style illustration, colorful, metaphorical, simple shapes, clear background, related to: {st.session_state.texte_simplifie[:300]}"
                 
-                # Использование НОВОГО синтаксиса OpenAI для картинок
-                reponse_image = client.images.generate(
-                    model="dall-e-3",
-                    prompt=prompt_image,
-                    n=1,
-                    size="1024x1024"
-                )
+                # Подготавливаем текст для ссылки (заменяем пробелы на безопасный код %20)
+                prompt_safe = prompt_image.replace(" ", "%20").replace("\n", "%20")
                 
-                image_url = reponse_image.data[0].url
+                # Обращаемся к независимому бесплатному генератору изображений
+                image_url = f"https://image.pollinations.ai/prompt/{prompt_safe}?width=1024&height=1024&nologo=true"
                 
                 st.markdown("### Illustration :")
                 st.image(image_url)
