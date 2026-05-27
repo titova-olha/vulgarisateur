@@ -46,7 +46,7 @@ if st.session_state.texte_simplifie:
     st.write("Voulez-vous ajouter une métaphore visuelle ?")
     
     # Вторая кнопка - только по желанию!
-    if st.button("🎨 Générer une illustration (DALL-E 3)"):
+    if st.button("🎨 Générer une illustration (DALL-E 2)"):
         with st.spinner("Création de l'image en cours... Cela peut prendre quelques secondes."):
             try:
                 # Генерация промпта для картинки на основе простого текста
@@ -54,10 +54,10 @@ if st.session_state.texte_simplifie:
                 
                 # Использование НОВОГО синтаксиса OpenAI для картинок
                 reponse_image = client.images.generate(
-                    model="dall-e-3",
+                    model="dall-e-2",
                     prompt=prompt_image,
                     n=1,
-                    size="1024x1024"
+                    size="512x512"
                 )
                 
                 image_url = reponse_image.data[0].url
